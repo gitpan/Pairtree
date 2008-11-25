@@ -8,11 +8,11 @@ require Exporter;
 our @ISA = qw(Exporter);
 
 our $VERSION;
-$VERSION = sprintf "%d.%02d", q$Name: Release-0-01 $ =~ /Release-(\d+)-(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Name: Release-0-2 $ =~ /Release-(\d+)-(\d+)/;
 our @EXPORT = qw(
 	id2ppath ppath2id id2pairpath pairpath2id
-	ptaddnode ptdelnode ptscantree
 );
+#	ptaddnode ptdelnode ptscantree
 our @EXPORT_OK = qw( VERSION );
 #	errmsg logmsg note sample validate
 
@@ -242,7 +242,7 @@ Pairtree - routines to manage pairtrees
 
 =head1 SYNOPSIS
 
- use Pairtree;                 # imports routines into a Perl script
+ use File::Pairtree;           # imports routines into a Perl script
 
  id2ppath($id);                # returns pairpath corresponding to $id
  id2ppath($id, $separator);    # if you want an alternate separator char

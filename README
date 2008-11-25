@@ -2,7 +2,7 @@ INSTALLATION
 
 If not already unpacked, unpack Pairtree with
 
-   tar xzf Pairtree-0.1.tar.gz
+   tar xzf Pairtree-0.2.tar.gz
 
 after adjusting the version number as needed.
 
@@ -36,6 +36,4 @@ under the License.
 
 
 ACKNOWLEDGEMENTS
-
-Thanks to ...
 

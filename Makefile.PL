@@ -5,7 +5,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME              => 'Pairtree',
-    EXE_FILES         => [ 'pt' ],
+    #EXE_FILES         => [ 'pt' ],
     #VERSION_FROM      => 'lib/Pairtree.pm',    # finds $VERSION
     VERSION_FROM      => 'VERSION',    # finds $VERSION
     #VERSION           => '0.1',
