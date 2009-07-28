@@ -5,9 +5,12 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME              => 'Pairtree',
-    #EXE_FILES         => [ 'pt' ],
+    EXE_FILES         => [ 'pt' ],
     #VERSION_FROM      => 'lib/Pairtree.pm',    # finds $VERSION
     VERSION_FROM      => 'VERSION',    # finds $VERSION
+    PM		=> {
+		'lib/File/Pairtree.pm'	=> 'blib/lib/File/Pairtree.pm'
+		},
     #VERSION           => '0.1',
     PREREQ_PM         => {
 	#'File::Path'		=> '0',		# ??? XXXX

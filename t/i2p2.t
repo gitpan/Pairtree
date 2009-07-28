@@ -4,9 +4,9 @@
 
 use File::Pairtree;
 
-use Test::More tests => 63;
+use Test::More tests => 66;
 
-my $pre = 'pairtree_root';
+my $pre = $File::Pairtree::root;
 
 # For round-trip testing.  Gets you more for your testing dollar.
 #
@@ -89,6 +89,8 @@ p2i2p('/ab/cd/e/', '/ab/cd/e/', 'abcde', 'basic 5-char path');
 
 p2i2p('ab/cd/e', '/ab/cd/e/', 'abcde', 'missing terminal separators');
 
+p2i2p('/ab/cd/e/f/gh/', '/ab/cd/e/', 'abcde', '1-char shorty ends ppath');
+
 p2i2p('///ab///cd///e///////', '/ab/cd/e/', 'abcde',
 	'lots of bunched separators');
 
@@ -120,5 +122,10 @@ like ppath2id('/ab/^a'), '/^error: impossible/', 'hex encoding check 2';
 like ppath2id('/ab/^a/g'), '/^error: impossible/', 'hex encoding check 3';
 
 like ppath2id('/ab/^r/f'), '/^error: impossible/', 'hex encoding check 4';
+
+is s2ppchars('http://n2t.info/urn:nbn:se:kb:repos-1'),
+	'http+==n2t,info=urn+nbn+se+kb+repos-1',
+	'ptsafe on a URL with colons, slashes, and periods';
+
 }
 # XXX initial whitespace, utf8

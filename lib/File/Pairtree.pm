@@ -4,17 +4,52 @@ use 5.000000;
 use strict;
 use warnings;
 
+# This is a magic routine that the Exporter calls for any unknown symbols.
+# We use it to allow the caller to redefine what a pair means.
+#
+sub export_fail { my( $class, @symbols )=@_;
+	#"3" is not defined in %File::Pairtree::EXPORT_TAGS at ./pt line 15
+	print STDERR "XXXXX\n";
+	for (@symbols) {
+		print STDERR "sym=$_\n";
+	}
+	#return @symbols;
+	return ();
+}
+
 require Exporter;
 our @ISA = qw(Exporter);
 
 our $VERSION;
 $VERSION = sprintf "%d.%02d", q$Name: Release-0-2 $ =~ /Release-(\d+)-(\d+)/;
 our @EXPORT = qw(
-	id2ppath ppath2id id2pairpath pairpath2id
+	id2ppath ppath2id s2ppchars id2pairpath pairpath2id
+	$pair $pairp1 $pairm1
 );
 #	ptaddnode ptdelnode ptscantree
-our @EXPORT_OK = qw( VERSION );
-#	errmsg logmsg note sample validate
+our @EXPORT_OK = qw(
+	$pair $pairp1 $pairm1
+);
+
+my $default_pathcomp_sep = '/';
+
+our $root = 'pairtree_root';
+
+our ($pair, $pairp1, $pairm1);
+pairmeans(2);			# define how many octets are in a pair
+
+# In case we want to experiment with different cardinality of "pair",
+# eg, 3 chars, 1 char, 4 chars.  This is untested. XXX
+# 
+sub pairmeans{ my( $n )=@_;
+
+	die("the number meant by 'pair' must be a positive integer")
+		if ($n < 1);
+	$pair = $n;
+	$pairp1 = $pair + 1;
+	$pairm1 = $pair - 1;	# xxx what if $pairm1 is zero?
+	return 1;
+}
 
 # Pairtree - Pairtree support software (Perl module)
 # 
@@ -40,9 +75,6 @@ our @EXPORT_OK = qw( VERSION );
 # under the License. 
 # ---------
 
-my $default_pathcomp_sep = '/';
-my $root = 'pairtree_root';
-
 # id2ppath - return /-terminated ppath corresponding to id
 # 
 # For Perl, the platform's path component separator ('/' or '\') is
@@ -51,15 +83,41 @@ my $root = 'pairtree_root';
 # make it possible to specify the path component separator, but we won't
 # do it for you.  Instead we assume '/'.
 #
-# We use the symbol 'pathcomp_sep' because 'path_sep' is already taken
-# by the Config module to designate the character that separates one path
-# from another, eg, ':' in the PATH environment variable.
+# The return path starts with /pairtree_root to encourage good habits --
+# this could backfire.  We use the symbol 'pathcomp_sep' because
+# 'path_sep' is already taken by the Config module to designate the
+# character that separates entire pathnames, eg, ':' in the PATH
+# environment variable.
 #
 sub id2ppath{ my( $id, $pathcomp_sep )=@_;	# single arg form, second
 						# arg not advertized
 
 	$pathcomp_sep ||= $default_pathcomp_sep;
-	$id =~ s{
+#	$id =~ s{
+#		(["*+,<=>?\\^|]			# some visible ASCII and
+#		 |[^\x21-\x7e])			# all non-visible ASCII
+#	}{
+#		sprintf("^%02x", ord($1))	# replacement hex code
+#	}xeg;
+#
+#	# Now do the single-char to single-char mapping.
+#	# The / translated next is not to be confused with $pathcomp_sep.
+#	#
+#	$id =~ tr /\/:./=+,/;			# per spec, /:. become =+,
+
+	$id = s2ppchars($id, $pathcomp_sep);
+
+	return $root
+		. $pathcomp_sep
+		. join($pathcomp_sep, $id =~ /.{1,$pair}/g)
+		. $pathcomp_sep;
+		# . join($pathcomp_sep, $id =~ /..|.$/g)
+}
+
+sub s2ppchars{ my( $s, $pathcomp_sep )=@_;
+
+	$pathcomp_sep ||= $default_pathcomp_sep;
+	$s =~ s{
 		(["*+,<=>?\\^|]			# some visible ASCII and
 		 |[^\x21-\x7e])			# all non-visible ASCII
 	}{
@@ -69,14 +127,11 @@ sub id2ppath{ my( $id, $pathcomp_sep )=@_;	# single arg form, second
 	# Now do the single-char to single-char mapping.
 	# The / translated next is not to be confused with $pathcomp_sep.
 	#
-	$id =~ tr /\/:./=+,/;			# per spec, /:. become =+,
-
-	return $root
-		. $pathcomp_sep
-		. join($pathcomp_sep, $id =~ /..|.$/g)
-		. $pathcomp_sep;
+	$s =~ tr /\/:./=+,/;			# per spec, /:. become =+,
+	return $s;
 }
 
+# XXX ditch 2-arg forms?
 # This 2-arg form exists for parallelism with other language interfaces
 # (that don't may not have optional arguments).  Perl users would
 # normally prefer the id2ppath form for full functionality and speed.
@@ -105,9 +160,9 @@ sub ppath2id{ my( $path, $pathcomp_sep )=@_;	# single arg form, second
 	}
 
 	# Trim everything from the beginning up to the last instance of
-	# $root (via a greedy match).  If there's a pairpath preceding
-	# a given pairpath, assume that the most fine grained path is
-	# the one the user's interested in.
+	# $root (via a greedy match).  If there's a pairpath to the right
+	# of a given pairpath, assume that the most fine grained path
+	# (rightmost) is the one the user's interested in.
 	#
 	$id =~ s/^.*$root//;
 
@@ -119,20 +174,17 @@ sub ppath2id{ my( $path, $pathcomp_sep )=@_;	# single arg form, second
 	$id =~ s/\s*$/$p/;
 	$id =~ s/$p+/$p/g;
 
-	# Reject if there's any internal whitespace.
-	# XXX
-	#return "error: internal whitespace in $path" if
-	#	$id =~ /\s/;
-
-	# Also trim any final junk, eg, an path extension that is really
+	# Also trim any final junk, eg, anpath extension that is really
 	# internal to an object directory.
 	#
-	$id =~ s/[^$p]{3,}.*$//;	# trim final junk
+	$id =~ s/[^$p]{$pairp1,}.*$//;	# trim final junk
 
 	# Finally, trim anything that follows a one-char path component,
-	# a one-char component another signal of the end of a ppath.
+	# a one-char component being another signal of the end of a ppath.
+	# In a general sense, "one" here really means "one less than the
+	# number of chars in a 'pair'".
 	#
-	$id =~ s/($p[^$p]$p).*$/$1/;	# trim anything after 1-char comp.
+	$id =~ s/($p([^$p]){1,$pairm1}$p).*$/$1/;   # trim after 1-char comp.
 
 	# Reject if there are any non-visible chars.
 	#
@@ -169,24 +221,29 @@ sub ppath2id{ my( $path, $pathcomp_sep )=@_;	# single arg form, second
 	return $id;
 }
 
-# use File::Path;
-# 
-# sub ptaddnode { my( $base, $id )=@_;
-# 
-# 	return "" if
-# 		(! defined($id) || $id eq "");
-# 	my ($root, $prefix) = base_init($base);
-# 	return "" if
-# 		(! defined($root));
-# 	my $ppath = id2ppath($id);
-# 	my $wholepath = $base . $ppath;
-# 
-# 	eval { mkpath($wholepath) };
-# 
-# 	return "" if
-# 		($@);
-# 	return $ppath;
-# }
+use File::Path;
+
+sub ptaddnode { my( $base, $id )=@_;
+
+	return "" if
+		(! defined($id) || $id eq "");
+	# my ($root, $prefix) = base_init($base);
+	return "" if
+		(! defined($root));
+	my $ppath = id2ppath($id);
+	my $wholepath = $base . $ppath;
+
+	eval { mkpath($wholepath) };
+
+	return "" if
+		($@);
+	return $ppath;
+}
+
+#sub ptopen { my( $x )=@_;
+#	return bless {};
+#}
+#
 # 
 # sub ptdelnode { my( $base, $id )=@_;
 # 
